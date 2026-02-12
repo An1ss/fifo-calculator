@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FIFO Liquidation Calculator</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>📊 FIFO Liquidation Calculator</h1>
+      <p class="subtitle">Upload transactions, map columns, view lots — all processed locally in your browser.</p>
+    </header>
+
+    <!-- Step 1: Upload -->
+    <section id="step-upload" class="step active">
+      <div class="step-header">
+        <span class="step-number">1</span>
+        <h2>Upload Excel File</h2>
+      </div>
+      <div class="upload-zone" id="drop-zone">
+        <input type="file" id="file-input" accept=".xlsx,.xls,.csv" />
+        <div class="upload-label">
+          <span class="upload-icon">📁</span>
+          <p>Drop your Excel/CSV file here or <strong>click to browse</strong></p>
+          <p class="hint">Supported: .xlsx, .xls, .csv</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 2: Column Mapping -->
+    <section id="step-mapping" class="step hidden">
+      <div class="step-header">
+        <span class="step-number">2</span>
+        <h2>Map Columns</h2>
+      </div>
+      <div class="mapping-grid">
+        <div class="mapping-field">
+          <label for="col-date">Date</label>
+          <select id="col-date"></select>
+        </div>
+        <div class="mapping-field">
+          <label for="col-direction">Buy/Sell Direction</label>
+          <select id="col-direction"></select>
+        </div>
+        <div class="mapping-field">
+          <label for="col-nominal">Nominal (Quantity)</label>
+          <select id="col-nominal"></select>
+        </div>
+        <div class="mapping-field">
+          <label for="col-trn">TRN (Transaction Ref)</label>
+          <select id="col-trn"></select>
+        </div>
+        <div class="mapping-field">
+          <label for="col-cnc">CNC (Contract Ref)</label>
+          <select id="col-cnc"></select>
+        </div>
+        <div class="mapping-field">
+          <label for="col-pck">PCK (Package Ref)</label>
+          <select id="col-pck"></select>
+        </div>
+      </div>
+      <div class="mapping-options">
+        <div class="mapping-field">
+          <label for="buy-keyword">Buy keyword</label>
+          <input type="text" id="buy-keyword" value="Buy" placeholder="e.g. Buy, B, Purchase" />
+        </div>
+        <div class="mapping-field">
+          <label for="sell-keyword">Sell keyword</label>
+          <input type="text" id="sell-keyword" value="Sell" placeholder="e.g. Sell, S, Sale" />
+        </div>
+      </div>
+      <div class="preview-section">
+        <h3>Data Preview</h3>
+        <div id="data-preview" class="table-wrapper"></div>
+      </div>
+      <button id="btn-calculate" class="btn-primary">Calculate FIFO Lots</button>
+    </section>
+
+    <!-- Step 3: Results -->
+    <section id="step-results" class="step hidden">
+      <div class="step-header">
+        <span class="step-number">3</span>
+        <h2>FIFO Lots</h2>
+      </div>
+      <div class="results-summary" id="results-summary"></div>
+      <div class="filter-bar">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="open">Open</button>
+        <button class="filter-btn" data-filter="closed">Closed</button>
+      </div>
+      <div id="lots-container" class="lots-container"></div>
+      <div class="actions-bar">
+        <button id="btn-export" class="btn-secondary">Export to CSV</button>
+        <button id="btn-reset" class="btn-secondary">Start Over</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
