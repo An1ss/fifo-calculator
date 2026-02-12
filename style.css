@@ -2,27 +2,51 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #0f1117;
-  --surface: #1a1d27;
-  --surface-hover: #22263a;
-  --border: #2a2e3f;
-  --text: #e4e4e7;
-  --text-muted: #9ca3af;
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
-  --green: #22c55e;
-  --green-bg: rgba(34, 197, 94, 0.1);
-  --red: #ef4444;
-  --red-bg: rgba(239, 68, 68, 0.1);
+  --bg: #0f1417;
+  --surface: #1a2328;
+  --surface-hover: #223038;
+  --border: #2f3d45;
+  --text: #e7eef0;
+  --text-muted: #9eb0b8;
+  --accent: #ec4f93;
+  --accent-hover: #f06ba4;
+  --accent-soft: rgba(236, 79, 147, 0.12);
+  --accent-rgb: 236, 79, 147;
+  --green: #19bf74;
+  --green-bg: rgba(25, 191, 116, 0.12);
+  --red: #f0526d;
+  --red-bg: rgba(240, 82, 109, 0.12);
   --yellow: #eab308;
   --yellow-bg: rgba(234, 179, 8, 0.1);
   --radius: 8px;
   --radius-lg: 12px;
 }
 
+:root[data-theme="light"] {
+  --bg: #f4f7f8;
+  --surface: #ffffff;
+  --surface-hover: #f2f6f8;
+  --border: #d3e0e6;
+  --text: #16313e;
+  --text-muted: #55717f;
+  --accent: #d93c82;
+  --accent-hover: #c13072;
+  --accent-soft: rgba(217, 60, 130, 0.1);
+  --accent-rgb: 217, 60, 130;
+  --green: #0f9e61;
+  --green-bg: rgba(15, 158, 97, 0.12);
+  --red: #d63d5a;
+  --red-bg: rgba(214, 61, 90, 0.12);
+  --yellow: #c78f00;
+  --yellow-bg: rgba(199, 143, 0, 0.12);
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: var(--bg);
+  background:
+    radial-gradient(circle at 15% 0%, var(--accent-soft), transparent 38%),
+    radial-gradient(circle at 85% 0%, rgba(25, 191, 116, 0.08), transparent 34%),
+    var(--bg);
   color: var(--text);
   line-height: 1.6;
   min-height: 100vh;
@@ -36,6 +60,7 @@ body {
 
 /* ── Header ──────────────────────────────────── */
 header {
+  position: relative;
   text-align: center;
   margin-bottom: 2.5rem;
 }
@@ -49,6 +74,25 @@ header h1 {
 .subtitle {
   color: var(--text-muted);
   font-size: 0.95rem;
+}
+
+.theme-toggle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* ── Steps ───────────────────────────────────── */
@@ -102,7 +146,7 @@ header h1 {
 .upload-zone:hover,
 .upload-zone.dragover {
   border-color: var(--accent);
-  background: rgba(99, 102, 241, 0.05);
+  background: rgba(var(--accent-rgb), 0.06);
 }
 
 .upload-zone input[type="file"] {
@@ -268,7 +312,7 @@ header h1 {
 }
 
 .summary-card.open .value { color: var(--green); }
-.summary-card.closed .value { color: var(--text-muted); }
+.summary-card.closed .value { color: var(--red); }
 .summary-card.total .value { color: var(--accent); }
 
 .sort-rule-note {
@@ -484,6 +528,11 @@ header h1 {
 /* ── Responsive ──────────────────────────────── */
 @media (max-width: 640px) {
   #app { padding: 1rem; }
+  header { text-align: left; }
+  .theme-toggle {
+    position: static;
+    margin-top: 0.75rem;
+  }
   .step { padding: 1rem 1.25rem; }
   .upload-zone { padding: 2rem 1rem; }
   .results-controls { align-items: stretch; }

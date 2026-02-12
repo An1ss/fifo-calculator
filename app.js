@@ -24,6 +24,9 @@
   const btnReset     = $('btn-reset');
   const searchRef    = $('search-ref');
   const searchCount  = $('search-count');
+  const themeToggle  = $('theme-toggle');
+
+  initTheme();
 
   const selectors = {
     date:      $('col-date'),
@@ -363,6 +366,7 @@
               <tr>
                 <th>Direction</th>
                 <th>Quantity</th>
+                <th>Remaining</th>
                 <th>Date</th>
                 <th>TRN</th>
                 <th>CNC</th>
@@ -371,15 +375,16 @@
               </tr>
             </thead>
             <tbody>
-              ${lot.contributors.map(c => `
+              ${getContributorRows(lot).map(({ contributor, remainingAfter }) => `
                 <tr>
-                  <td class="dir-${c.direction}">${c.direction.toUpperCase()}</td>
-                  <td>${fmtNum(c.qty)}</td>
-                  <td>${fmtDate(c.date)}</td>
-                  <td>${esc(c.trn)}</td>
-                  <td>${esc(c.cnc)}</td>
-                  <td>${esc(c.pck)}</td>
-                  <td>${c.rowNum}</td>
+                  <td class="dir-${contributor.direction}">${contributor.direction.toUpperCase()}</td>
+                  <td>${fmtNum(contributor.qty)}</td>
+                  <td>${fmtNum(remainingAfter)}</td>
+                  <td>${fmtDate(contributor.date)}</td>
+                  <td>${esc(contributor.trn)}</td>
+                  <td>${esc(contributor.cnc)}</td>
+                  <td>${esc(contributor.pck)}</td>
+                  <td>${contributor.rowNum}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -438,13 +443,23 @@
 
   // ── Export ──
   btnExport.addEventListener('click', () => {
-    const rows = [['Lot', 'Side', 'Status', 'Open Qty', 'Remaining Qty', 'Lot Date', 'Lot TRN', 'Lot CNC', 'Lot PCK', 'Contributor Direction', 'Contributor Qty', 'Contributor Date', 'Contributor TRN', 'Contributor CNC', 'Contributor PCK', 'Contributor Row']];
+    const rows = [['Lot', 'Side', 'Status', 'Lot Date', 'Lot Open Qty', 'Contributor Direction', 'Contributor Qty', 'Remaining After Txn', 'Contributor Date', 'TRN', 'CNC', 'PCK', 'Contributor Row']];
     for (const lot of lots) {
-      for (const c of lot.contributors) {
+      for (const { contributor, remainingAfter } of getContributorRows(lot)) {
         rows.push([
-          lot.id, lot.side, lot.status, lot.openQty, lot.remainingQty,
-          fmtDate(lot.date), lot.trn, lot.cnc, lot.pck,
-          c.direction, c.qty, fmtDate(c.date), c.trn, c.cnc, c.pck, c.rowNum,
+          lot.id,
+          lot.side,
+          lot.status,
+          fmtDate(lot.date),
+          lot.openQty,
+          contributor.direction,
+          contributor.qty,
+          remainingAfter,
+          fmtDate(contributor.date),
+          contributor.trn,
+          contributor.cnc,
+          contributor.pck,
+          contributor.rowNum,
         ]);
       }
     }
@@ -464,8 +479,9 @@
     ]];
 
     const detailRows = [[
-      'Lot', 'Side', 'Status', 'Lot Date', 'Lot Open Qty', 'Lot Remaining Qty',
-      'Contributor Direction', 'Contributor Qty', 'Contributor Date', 'TRN', 'CNC', 'PCK', 'Source Row'
+      'Lot', 'Side', 'Status', 'Lot Date', 'Lot Open Qty',
+      'Contributor Direction', 'Contributor Qty', 'Contributor Date', 'TRN', 'CNC', 'PCK', 'Source Row',
+      'Remaining After Txn'
     ]];
 
     for (const lot of lots) {
@@ -479,21 +495,21 @@
         lot.contributors.length,
       ]);
 
-      for (const c of lot.contributors) {
+      for (const { contributor, remainingAfter } of getContributorRows(lot)) {
         detailRows.push([
           lot.id,
           lot.side,
           lot.status,
           fmtDate(lot.date),
           lot.openQty,
-          lot.remainingQty,
-          c.direction,
-          c.qty,
-          fmtDate(c.date),
-          c.trn,
-          c.cnc,
-          c.pck,
-          c.rowNum,
+          contributor.direction,
+          contributor.qty,
+          fmtDate(contributor.date),
+          contributor.trn,
+          contributor.cnc,
+          contributor.pck,
+          contributor.rowNum,
+          remainingAfter,
         ]);
       }
     }
@@ -563,6 +579,19 @@
     return Math.round(n * 1e8) / 1e8;
   }
 
+  function getContributorRows(lot) {
+    let running = 0;
+    return lot.contributors.map(contributor => {
+      running = round(running + contributorSignedQty(lot.side, contributor.direction, contributor.qty));
+      return { contributor, remainingAfter: running };
+    });
+  }
+
+  function contributorSignedQty(lotSide, direction, qty) {
+    if (lotSide === 'buy') return direction === 'buy' ? qty : -qty;
+    return direction === 'sell' ? qty : -qty;
+  }
+
   function stampNow() {
     const d = new Date();
     const yyyy = d.getFullYear();
@@ -571,5 +600,26 @@
     const hh = String(d.getHours()).padStart(2, '0');
     const mi = String(d.getMinutes()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}_${hh}${mi}`;
+  }
+
+  function initTheme() {
+    const savedTheme = localStorage.getItem('fifo-theme');
+    const initialTheme = savedTheme === 'light' || savedTheme === 'dark'
+      ? savedTheme
+      : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    setTheme(initialTheme);
+
+    if (!themeToggle) return;
+    themeToggle.addEventListener('click', () => {
+      const nextTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      setTheme(nextTheme);
+    });
+  }
+
+  function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('fifo-theme', theme);
+    if (!themeToggle) return;
+    themeToggle.textContent = theme === 'light' ? 'Dark Theme' : 'Light Theme';
   }
 })();
