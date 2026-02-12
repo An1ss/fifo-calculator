@@ -1,0 +1,33 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editors/IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python virtual environments and cache
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Local env files
+.env
+.env.*
+
+# Node artifacts (if ever used for tooling)
+node_modules/
+
+# Build and archive artifacts
+dist/
+build/
+*.zip
+*.tar
+*.tar.gz

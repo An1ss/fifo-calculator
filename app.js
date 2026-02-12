@@ -168,41 +168,73 @@
       };
     }).filter(t => t.direction && t.nominal > 0);
 
-    // Sort by date, then by original row order
-    transactions.sort((a, b) => (a.date - b.date) || (a.idx - b.idx));
+    // Sort by value date, then contract number, then original row order
+    transactions.sort((a, b) => (a.date - b.date) || compareContract(a.cnc, b.cnc) || (a.idx - b.idx));
 
     // FIFO engine
     lots = [];
-    const openLots = []; // queue of lot indices
+    const openBuyLots = [];  // queue of open buy lot indices
+    const openSellLots = []; // queue of open sell lot indices
 
     for (const txn of transactions) {
       if (txn.direction === 'buy') {
-        const lot = {
-          id: lots.length + 1,
-          openQty: txn.nominal,
-          remainingQty: txn.nominal,
-          date: txn.date,
-          trn: txn.trn,
-          cnc: txn.cnc,
-          pck: txn.pck,
-          status: 'open',
-          contributors: [{
+        // Buy first closes oldest open short (sell) lots
+        let remaining = txn.nominal;
+        while (remaining > 0 && openSellLots.length > 0) {
+          const lotIdx = openSellLots[0];
+          const lot = lots[lotIdx];
+          const consume = Math.min(remaining, lot.remainingQty);
+
+          lot.remainingQty = round(lot.remainingQty - consume);
+          remaining = round(remaining - consume);
+
+          lot.contributors.push({
             direction: 'buy',
-            qty: txn.nominal,
+            qty: consume,
             date: txn.date,
             trn: txn.trn,
             cnc: txn.cnc,
             pck: txn.pck,
             rowNum: txn.idx,
-          }],
-        };
-        lots.push(lot);
-        openLots.push(lots.length - 1);
+          });
+
+          if (lot.remainingQty <= 0) {
+            lot.remainingQty = 0;
+            lot.status = 'closed';
+            openSellLots.shift();
+          }
+        }
+
+        // Remaining buy opens a new long lot
+        if (remaining > 0) {
+          const lot = {
+            id: lots.length + 1,
+            side: 'buy',
+            openQty: remaining,
+            remainingQty: remaining,
+            date: txn.date,
+            trn: txn.trn,
+            cnc: txn.cnc,
+            pck: txn.pck,
+            status: 'open',
+            contributors: [{
+              direction: 'buy',
+              qty: remaining,
+              date: txn.date,
+              trn: txn.trn,
+              cnc: txn.cnc,
+              pck: txn.pck,
+              rowNum: txn.idx,
+            }],
+          };
+          lots.push(lot);
+          openBuyLots.push(lots.length - 1);
+        }
       } else {
-        // Sell: consume from oldest open lots
+        // Sell first closes oldest open long (buy) lots
         let remaining = txn.nominal;
-        while (remaining > 0 && openLots.length > 0) {
-          const lotIdx = openLots[0];
+        while (remaining > 0 && openBuyLots.length > 0) {
+          const lotIdx = openBuyLots[0];
           const lot = lots[lotIdx];
           const consume = Math.min(remaining, lot.remainingQty);
 
@@ -222,12 +254,34 @@
           if (lot.remainingQty <= 0) {
             lot.remainingQty = 0;
             lot.status = 'closed';
-            openLots.shift();
+            openBuyLots.shift();
           }
         }
 
+        // Remaining sell opens a new short lot
         if (remaining > 0) {
-          console.warn(`Oversold: ${remaining} units could not be matched to any open lot (row ${txn.idx}).`);
+          const lot = {
+            id: lots.length + 1,
+            side: 'sell',
+            openQty: remaining,
+            remainingQty: remaining,
+            date: txn.date,
+            trn: txn.trn,
+            cnc: txn.cnc,
+            pck: txn.pck,
+            status: 'open',
+            contributors: [{
+              direction: 'sell',
+              qty: remaining,
+              date: txn.date,
+              trn: txn.trn,
+              cnc: txn.cnc,
+              pck: txn.pck,
+              rowNum: txn.idx,
+            }],
+          };
+          lots.push(lot);
+          openSellLots.push(lots.length - 1);
         }
       }
     }
@@ -240,17 +294,23 @@
     stepMapping.classList.add('hidden');
     stepResults.classList.remove('hidden');
 
-    const openCount   = lots.filter(l => l.status === 'open').length;
+    const openCount = lots.filter(l => l.status === 'open').length;
     const closedCount = lots.filter(l => l.status === 'closed').length;
-    const totalQtyOpen = lots.filter(l => l.status === 'open').reduce((s, l) => s + l.remainingQty, 0);
-    const totalQtyAll  = lots.reduce((s, l) => s + l.openQty, 0);
+    const openLongQty = lots.filter(l => l.status === 'open' && l.side === 'buy').reduce((s, l) => s + l.remainingQty, 0);
+    const openShortQty = lots.filter(l => l.status === 'open' && l.side === 'sell').reduce((s, l) => s + l.remainingQty, 0);
+    const netOpenQty = round(openLongQty - openShortQty);
+    const totalBoughtQty = lots.filter(l => l.side === 'buy').reduce((s, l) => s + l.openQty, 0);
+    const totalSoldQty = lots.filter(l => l.side === 'sell').reduce((s, l) => s + l.openQty, 0);
 
     $('results-summary').innerHTML = `
       <div class="summary-card total"><div class="value">${lots.length}</div><div class="label">Total Lots</div></div>
       <div class="summary-card open"><div class="value">${openCount}</div><div class="label">Open Lots</div></div>
       <div class="summary-card closed"><div class="value">${closedCount}</div><div class="label">Closed Lots</div></div>
-      <div class="summary-card open"><div class="value">${fmtNum(totalQtyOpen)}</div><div class="label">Open Quantity</div></div>
-      <div class="summary-card total"><div class="value">${fmtNum(totalQtyAll)}</div><div class="label">Total Bought</div></div>
+      <div class="summary-card open"><div class="value">${fmtNum(openLongQty)}</div><div class="label">Open Long Position</div></div>
+      <div class="summary-card closed"><div class="value">${fmtNum(openShortQty)}</div><div class="label">Open Short Position</div></div>
+      <div class="summary-card total"><div class="value">${fmtNum(netOpenQty)}</div><div class="label">Net Position</div></div>
+      <div class="summary-card total"><div class="value">${fmtNum(totalBoughtQty)}</div><div class="label">Total Buy Lots</div></div>
+      <div class="summary-card closed"><div class="value">${fmtNum(totalSoldQty)}</div><div class="label">Total Short Lots</div></div>
     `;
 
     renderLots();
@@ -272,6 +332,7 @@
         <div class="lot-header" onclick="window.__toggleLot(${lot.id})">
           <div class="lot-info">
             <span class="lot-number">Lot #${lot.id}</span>
+            <span class="ref-badge">${lot.side === 'sell' ? 'SHORT LOT' : 'LONG LOT'}</span>
             <span class="lot-status ${lot.status}">${lot.status.toUpperCase()}</span>
             <span class="lot-qty">
               <span class="remaining">${fmtNum(lot.remainingQty)}</span>
@@ -336,11 +397,11 @@
 
   // ── Export ──
   btnExport.addEventListener('click', () => {
-    const rows = [['Lot', 'Status', 'Open Qty', 'Remaining Qty', 'Lot Date', 'Lot TRN', 'Lot CNC', 'Lot PCK', 'Contributor Direction', 'Contributor Qty', 'Contributor Date', 'Contributor TRN', 'Contributor CNC', 'Contributor PCK', 'Contributor Row']];
+    const rows = [['Lot', 'Side', 'Status', 'Open Qty', 'Remaining Qty', 'Lot Date', 'Lot TRN', 'Lot CNC', 'Lot PCK', 'Contributor Direction', 'Contributor Qty', 'Contributor Date', 'Contributor TRN', 'Contributor CNC', 'Contributor PCK', 'Contributor Row']];
     for (const lot of lots) {
       for (const c of lot.contributors) {
         rows.push([
-          lot.id, lot.status, lot.openQty, lot.remainingQty,
+          lot.id, lot.side, lot.status, lot.openQty, lot.remainingQty,
           fmtDate(lot.date), lot.trn, lot.cnc, lot.pck,
           c.direction, c.qty, fmtDate(c.date), c.trn, c.cnc, c.pck, c.rowNum,
         ]);
@@ -385,6 +446,22 @@
   function fmtNum(n) {
     if (n == null || isNaN(n)) return '0';
     return Number.isInteger(n) ? n.toLocaleString() : n.toLocaleString(undefined, { maximumFractionDigits: 6 });
+  }
+
+  function compareContract(a, b) {
+    const aStr = String(a ?? '').trim();
+    const bStr = String(b ?? '').trim();
+    if (aStr === bStr) return 0;
+
+    const aNum = Number(aStr);
+    const bNum = Number(bStr);
+    const aIsNum = aStr !== '' && Number.isFinite(aNum);
+    const bIsNum = bStr !== '' && Number.isFinite(bNum);
+
+    if (aIsNum && bIsNum) return aNum - bNum;
+    if (aStr === '') return 1;
+    if (bStr === '') return -1;
+    return aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' });
   }
 
   function round(n) {

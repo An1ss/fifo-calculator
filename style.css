@@ -271,6 +271,12 @@ header h1 {
 .summary-card.closed .value { color: var(--text-muted); }
 .summary-card.total .value { color: var(--accent); }
 
+.sort-rule-note {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
 /* ── Filter Bar ──────────────────────────────── */
 .filter-bar {
   display: flex;
