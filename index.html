@@ -87,19 +87,26 @@
       </div>
       <p class="sort-rule-note">Sorting applied: Value date, then Contract #, then original row order.</p>
       <div class="results-summary" id="results-summary"></div>
-      <div class="filter-bar">
-        <button class="filter-btn active" data-filter="all">All</button>
-        <button class="filter-btn" data-filter="open">Open</button>
-        <button class="filter-btn" data-filter="closed">Closed</button>
+      <div class="results-controls">
+        <div class="filter-bar">
+          <button class="filter-btn active" data-filter="all">All</button>
+          <button class="filter-btn" data-filter="open">Open</button>
+          <button class="filter-btn" data-filter="closed">Closed</button>
+        </div>
+        <div class="search-wrap">
+          <input id="search-ref" type="text" placeholder="Search TRN / CNC / PCK..." autocomplete="off" />
+          <span class="search-count" id="search-count"></span>
+        </div>
       </div>
       <div id="lots-container" class="lots-container"></div>
       <div class="actions-bar">
         <button id="btn-export" class="btn-secondary">Export to CSV</button>
+        <button id="btn-export-xlsx" class="btn-secondary">Export to Excel</button>
         <button id="btn-reset" class="btn-secondary">Start Over</button>
       </div>
     </section>
   </div>
 
-  <script src="app.js?v=20260213b"></script>
+  <script src="app.js?v=20260213c"></script>
 </body>
 </html>

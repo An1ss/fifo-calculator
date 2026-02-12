@@ -7,6 +7,9 @@
   let headers = [];      // column headers
   let lots = [];         // computed FIFO lots
   let currentFilter = 'all';
+  let currentSearch = '';
+  let filtersBound = false;
+  let searchBound = false;
 
   // ── DOM refs ──
   const $ = id => document.getElementById(id);
@@ -17,7 +20,10 @@
   const dropZone     = $('drop-zone');
   const btnCalc      = $('btn-calculate');
   const btnExport    = $('btn-export');
+  const btnExportXlsx = $('btn-export-xlsx');
   const btnReset     = $('btn-reset');
+  const searchRef    = $('search-ref');
+  const searchCount  = $('search-count');
 
   const selectors = {
     date:      $('col-date'),
@@ -315,12 +321,16 @@
 
     renderLots();
     setupFilters();
+    setupSearch();
   }
 
   function renderLots() {
     const container = $('lots-container');
-    const filtered = currentFilter === 'all' ? lots
-      : lots.filter(l => l.status === currentFilter);
+    const filtered = getFilteredLots();
+
+    if (searchCount) {
+      searchCount.textContent = `${filtered.length} lot${filtered.length === 1 ? '' : 's'} found`;
+    }
 
     if (filtered.length === 0) {
       container.innerHTML = '<p class="hint" style="text-align:center;padding:2rem">No lots match this filter.</p>';
@@ -385,6 +395,7 @@
   };
 
   function setupFilters() {
+    if (filtersBound) return;
     document.querySelectorAll('.filter-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -393,6 +404,36 @@
         renderLots();
       });
     });
+    filtersBound = true;
+  }
+
+  function setupSearch() {
+    if (searchBound || !searchRef) return;
+    searchRef.addEventListener('input', () => {
+      currentSearch = searchRef.value.trim().toLowerCase();
+      renderLots();
+    });
+    searchBound = true;
+  }
+
+  function getFilteredLots() {
+    const byStatus = currentFilter === 'all' ? lots
+      : lots.filter(l => l.status === currentFilter);
+    if (!currentSearch) return byStatus;
+    return byStatus.filter(lot => lotMatchesSearch(lot, currentSearch));
+  }
+
+  function lotMatchesSearch(lot, q) {
+    for (const c of lot.contributors) {
+      if (contains(c.trn, q) || contains(c.cnc, q) || contains(c.pck, q)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function contains(value, q) {
+    return String(value ?? '').toLowerCase().includes(q);
   }
 
   // ── Export ──
@@ -417,10 +458,64 @@
     URL.revokeObjectURL(url);
   });
 
+  btnExportXlsx.addEventListener('click', () => {
+    const summaryRows = [[
+      'Lot', 'Side', 'Status', 'Lot Date', 'Open Qty', 'Remaining Qty', 'Contributors'
+    ]];
+
+    const detailRows = [[
+      'Lot', 'Side', 'Status', 'Lot Date', 'Lot Open Qty', 'Lot Remaining Qty',
+      'Contributor Direction', 'Contributor Qty', 'Contributor Date', 'TRN', 'CNC', 'PCK', 'Source Row'
+    ]];
+
+    for (const lot of lots) {
+      summaryRows.push([
+        lot.id,
+        lot.side,
+        lot.status,
+        fmtDate(lot.date),
+        lot.openQty,
+        lot.remainingQty,
+        lot.contributors.length,
+      ]);
+
+      for (const c of lot.contributors) {
+        detailRows.push([
+          lot.id,
+          lot.side,
+          lot.status,
+          fmtDate(lot.date),
+          lot.openQty,
+          lot.remainingQty,
+          c.direction,
+          c.qty,
+          fmtDate(c.date),
+          c.trn,
+          c.cnc,
+          c.pck,
+          c.rowNum,
+        ]);
+      }
+    }
+
+    const wb = XLSX.utils.book_new();
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+    const wsDetails = XLSX.utils.aoa_to_sheet(detailRows);
+    wsSummary['!autofilter'] = { ref: `A1:G1` };
+    wsDetails['!autofilter'] = { ref: `A1:M1` };
+    wsSummary['!freeze'] = { xSplit: 0, ySplit: 1 };
+    wsDetails['!freeze'] = { xSplit: 0, ySplit: 1 };
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Lots_Summary');
+    XLSX.utils.book_append_sheet(wb, wsDetails, 'Lot_Transactions');
+    XLSX.writeFile(wb, `fifo_lots_${stampNow()}.xlsx`);
+  });
+
   // ── Reset ──
   btnReset.addEventListener('click', () => {
-    rawData = []; headers = []; lots = []; currentFilter = 'all';
+    rawData = []; headers = []; lots = []; currentFilter = 'all'; currentSearch = '';
     fileInput.value = '';
+    if (searchRef) searchRef.value = '';
+    if (searchCount) searchCount.textContent = '';
     stepResults.classList.add('hidden');
     stepMapping.classList.add('hidden');
     stepUpload.classList.remove('hidden');
@@ -466,5 +561,15 @@
 
   function round(n) {
     return Math.round(n * 1e8) / 1e8;
+  }
+
+  function stampNow() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}_${hh}${mi}`;
   }
 })();

@@ -281,7 +281,43 @@ header h1 {
 .filter-bar {
   display: flex;
   gap: 0.5rem;
+}
+
+.results-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
   margin-bottom: 1rem;
+}
+
+.search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: min(420px, 100%);
+}
+
+.search-wrap input {
+  width: 100%;
+  padding: 0.45rem 0.75rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.search-wrap input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.search-count {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  white-space: nowrap;
 }
 
 .filter-btn {
@@ -450,6 +486,8 @@ header h1 {
   #app { padding: 1rem; }
   .step { padding: 1rem 1.25rem; }
   .upload-zone { padding: 2rem 1rem; }
+  .results-controls { align-items: stretch; }
+  .search-wrap { min-width: 100%; }
   .lot-info { flex-wrap: wrap; gap: 0.5rem; }
   .lot-refs { flex-wrap: wrap; }
 }
