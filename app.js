@@ -37,6 +37,7 @@
     trn:       $('col-trn'),
     cnc:       $('col-cnc'),
     pck:       $('col-pck'),
+    status:    $('col-status'),
   };
 
   // ── File Handling ──
@@ -99,6 +100,7 @@
       trn:       [/\btrn[\.\s]?nb\b/i, /\btrn\b/i, /transaction/i],
       cnc:       [/\bcnt[\.\s]?nb\b/i, /\bcnc\b/i, /contract/i],
       pck:       [/\bpck[\.\s]?nb\b/i, /\bpck\b/i, /package/i],
+      status:    [/\btrn[\._\s-]?status\b/i, /\bstatus\b/i, /\blive\b|\bdead\b/i],
     };
     for (const [key, reList] of Object.entries(patternSets)) {
       for (const re of reList) {
@@ -171,9 +173,14 @@
 
     const buyKw  = $('buy-keyword').value.trim().toLowerCase();
     const sellKw = $('sell-keyword').value.trim().toLowerCase();
+    const statusMode = $('status-mode')?.value || 'live-only';
+
+    if (statusMode === 'live-only' && cols.status == null) {
+      return alert('Please select a column for "TRN Status" or choose "Live + Dead trades".');
+    }
 
     // Parse transactions
-    const transactions = rawData.map((row, idx) => {
+    let transactions = rawData.map((row, idx) => {
       const dirRaw = String(row[cols.direction]).trim().toLowerCase();
       let dir = null;
       if (dirRaw.includes(buyKw))  dir = 'buy';
@@ -186,11 +193,13 @@
       const tradeDate = cols.trnDate != null ? parseDate(row[cols.trnDate]) : new Date(NaN);
       const tradeTime = cols.trnTime != null ? parseTime(row[cols.trnTime]) : null;
       const tradeDateTime = combineTradeDateTime(date, tradeDate, tradeTime);
+      const status = cols.status != null ? String(row[cols.status] ?? '').trim() : '';
 
       return {
         idx: idx + 2, // 1-indexed + header row
         date,
         tradeDateTime,
+        status,
         direction: dir,
         nominal: isNaN(nominal) ? 0 : Math.abs(nominal),
         trn: String(row[cols.trn] ?? '').trim(),
@@ -198,6 +207,10 @@
         pck: String(row[cols.pck] ?? '').trim(),
       };
     }).filter(t => t.direction && t.nominal > 0);
+
+    if (statusMode === 'live-only') {
+      transactions = transactions.filter(t => t.status.toLowerCase().includes('live'));
+    }
 
     // Sort by value date, then trade date+time
     transactions.sort((a, b) => {

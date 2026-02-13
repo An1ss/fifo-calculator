@@ -70,6 +70,10 @@
           <label for="col-pck">PCK (Package Ref)</label>
           <select id="col-pck"></select>
         </div>
+        <div class="mapping-field">
+          <label for="col-status">TRN Status</label>
+          <select id="col-status"></select>
+        </div>
       </div>
       <div class="mapping-options">
         <div class="mapping-field">
@@ -79,6 +83,13 @@
         <div class="mapping-field">
           <label for="sell-keyword">Sell keyword</label>
           <input type="text" id="sell-keyword" value="Sell" placeholder="e.g. Sell, S, Sale" />
+        </div>
+        <div class="mapping-field">
+          <label for="status-mode">Include trades</label>
+          <select id="status-mode">
+            <option value="live-only" selected>Live trades only</option>
+            <option value="live-and-dead">Live + Dead trades</option>
+          </select>
         </div>
       </div>
       <div class="preview-section">
@@ -116,6 +127,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20260213g"></script>
+  <script src="app.js?v=20260213h"></script>
 </body>
 </html>
