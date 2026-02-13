@@ -345,7 +345,7 @@
         <div class="lot-header" onclick="window.__toggleLot(${lot.id})">
           <div class="lot-info">
             <span class="lot-number">Lot #${lot.id}</span>
-            <span class="ref-badge">${lot.side === 'sell' ? 'SHORT LOT' : 'LONG LOT'}</span>
+            <span class="ref-badge lot-side ${lot.side === 'sell' ? 'short' : 'long'}">${lot.side === 'sell' ? 'SHORT LOT' : 'LONG LOT'}</span>
             <span class="lot-status ${lot.status}">${lot.status.toUpperCase()}</span>
             <span class="lot-qty">
               <span class="remaining">${fmtNum(lot.remainingQty)}</span>

@@ -16,6 +16,10 @@
   --green-bg: rgba(25, 191, 116, 0.12);
   --red: #f4c94f;
   --red-bg: rgba(244, 201, 79, 0.16);
+  --lot-long-bg: rgba(25, 191, 116, 0.14);
+  --lot-long-text: #7edfb3;
+  --lot-short-bg: rgba(214, 61, 90, 0.16);
+  --lot-short-text: #f29cb0;
   --yellow: #eab308;
   --yellow-bg: rgba(234, 179, 8, 0.1);
   --radius: 8px;
@@ -37,6 +41,10 @@
   --green-bg: rgba(15, 158, 97, 0.12);
   --red: #d63d5a;
   --red-bg: rgba(214, 61, 90, 0.12);
+  --lot-long-bg: rgba(15, 158, 97, 0.12);
+  --lot-long-text: #0f9e61;
+  --lot-short-bg: rgba(214, 61, 90, 0.12);
+  --lot-short-text: #b72f49;
   --yellow: #c78f00;
   --yellow-bg: rgba(199, 143, 0, 0.12);
 }
@@ -479,6 +487,21 @@ header h1 {
   border-radius: var(--radius);
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+.ref-badge.lot-side {
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.ref-badge.lot-side.long {
+  background: var(--lot-long-bg);
+  color: var(--lot-long-text);
+}
+
+.ref-badge.lot-side.short {
+  background: var(--lot-short-bg);
+  color: var(--lot-short-text);
 }
 
 .lot-expand {
