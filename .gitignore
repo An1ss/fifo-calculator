@@ -31,3 +31,6 @@ build/
 *.zip
 *.tar
 *.tar.gz
+
+# Local sample files
+sample-data*

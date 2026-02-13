@@ -43,6 +43,14 @@
           <select id="col-date"></select>
         </div>
         <div class="mapping-field">
+          <label for="col-trn-date">Trade Date (trn.date)</label>
+          <select id="col-trn-date"></select>
+        </div>
+        <div class="mapping-field">
+          <label for="col-trn-time">Trade Time (trn.time)</label>
+          <select id="col-trn-time"></select>
+        </div>
+        <div class="mapping-field">
           <label for="col-direction">Buy/Sell Direction</label>
           <select id="col-direction"></select>
         </div>
@@ -86,7 +94,7 @@
         <span class="step-number">3</span>
         <h2>FIFO Lots</h2>
       </div>
-      <p class="sort-rule-note">Sorting applied: Value date, then Contract #, then original row order.</p>
+      <p class="sort-rule-note">Sorting applied: Value date, then Trade date/time.</p>
       <div class="results-summary" id="results-summary"></div>
       <div class="results-controls">
         <div class="filter-bar">
@@ -108,6 +116,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=20260213f"></script>
+  <script src="app.js?v=20260213g"></script>
 </body>
 </html>

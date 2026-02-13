@@ -30,6 +30,8 @@
 
   const selectors = {
     date:      $('col-date'),
+    trnDate:   $('col-trn-date'),
+    trnTime:   $('col-trn-time'),
     direction: $('col-direction'),
     nominal:   $('col-nominal'),
     trn:       $('col-trn'),
@@ -90,6 +92,8 @@
     // Ordered from most specific to generic — first match wins per field
     const patternSets = {
       date:      [/\bvalue.?date\b/i, /^date$/i, /\bopt_flwfst\b/i, /date|time|dt/i],
+      trnDate:   [/\btrn[\._\s-]?date\b/i, /\btrade\s*date\b/i, /\bdeal\s*date\b/i],
+      trnTime:   [/\btrn[\._\s-]?time\b/i, /\btrade\s*time\b/i, /\bdeal\s*time\b/i, /^time$/i],
       direction: [/\bb\/?s\b/i, /direction|side|buy.*sell/i],
       nominal:   [/\bnominal\s*0\b/i, /\bqty\b|\bquantity\b/i, /\bnominal\b/i, /amount|notional|volume/i],
       trn:       [/\btrn[\.\s]?nb\b/i, /\btrn\b/i, /transaction/i],
@@ -127,6 +131,14 @@
 
     const s = String(val).trim();
 
+    const isoDate = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoDate) {
+      const yyyy = parseInt(isoDate[1], 10);
+      const mm = parseInt(isoDate[2], 10) - 1;
+      const dd = parseInt(isoDate[3], 10);
+      return new Date(yyyy, mm, dd);
+    }
+
     // Excel serial number (pure number like 44340)
     const num = Number(s);
     if (!isNaN(num) && num > 10000 && num < 100000) {
@@ -145,10 +157,16 @@
   // ── FIFO Calculation ──
   btnCalc.addEventListener('click', () => {
     const cols = {};
+    const requiredColumns = new Set(['date', 'direction', 'nominal', 'trn', 'cnc', 'pck']);
     for (const [key, sel] of Object.entries(selectors)) {
       const v = sel.value;
-      if (v === '') return alert(`Please select a column for "${sel.previousElementSibling.textContent}".`);
-      cols[key] = parseInt(v);
+      if (v === '') {
+        if (requiredColumns.has(key)) {
+          return alert(`Please select a column for "${sel.previousElementSibling.textContent}".`);
+        }
+        continue;
+      }
+      cols[key] = parseInt(v, 10);
     }
 
     const buyKw  = $('buy-keyword').value.trim().toLowerCase();
@@ -165,10 +183,14 @@
       const nominal = parseFloat(nomStr);
 
       const date = parseDate(row[cols.date]);
+      const tradeDate = cols.trnDate != null ? parseDate(row[cols.trnDate]) : new Date(NaN);
+      const tradeTime = cols.trnTime != null ? parseTime(row[cols.trnTime]) : null;
+      const tradeDateTime = combineTradeDateTime(date, tradeDate, tradeTime);
 
       return {
         idx: idx + 2, // 1-indexed + header row
         date,
+        tradeDateTime,
         direction: dir,
         nominal: isNaN(nominal) ? 0 : Math.abs(nominal),
         trn: String(row[cols.trn] ?? '').trim(),
@@ -177,8 +199,11 @@
       };
     }).filter(t => t.direction && t.nominal > 0);
 
-    // Sort by value date, then contract number, then original row order
-    transactions.sort((a, b) => (a.date - b.date) || compareContract(a.cnc, b.cnc) || (a.idx - b.idx));
+    // Sort by value date, then trade date+time
+    transactions.sort((a, b) => {
+      return compareDate(a.date, b.date)
+        || compareDate(a.tradeDateTime, b.tradeDateTime);
+    });
 
     // FIFO engine
     lots = [];
@@ -562,20 +587,91 @@
     return Number.isInteger(n) ? n.toLocaleString() : n.toLocaleString(undefined, { maximumFractionDigits: 6 });
   }
 
-  function compareContract(a, b) {
-    const aStr = String(a ?? '').trim();
-    const bStr = String(b ?? '').trim();
-    if (aStr === bStr) return 0;
+  function parseTime(val) {
+    if (val instanceof Date && !isNaN(val)) {
+      return {
+        h: val.getHours(),
+        m: val.getMinutes(),
+        s: val.getSeconds(),
+        ms: val.getMilliseconds(),
+      };
+    }
 
-    const aNum = Number(aStr);
-    const bNum = Number(bStr);
-    const aIsNum = aStr !== '' && Number.isFinite(aNum);
-    const bIsNum = bStr !== '' && Number.isFinite(bNum);
+    if (val == null || val === '') return null;
 
-    if (aIsNum && bIsNum) return aNum - bNum;
-    if (aStr === '') return 1;
-    if (bStr === '') return -1;
-    return aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' });
+    const raw = String(val).trim();
+    if (!raw) return null;
+
+    const num = Number(raw);
+    if (!isNaN(num) && num >= 0 && num < 1) {
+      const totalMs = Math.round(num * 86400000);
+      const h = Math.floor(totalMs / 3600000);
+      const m = Math.floor((totalMs % 3600000) / 60000);
+      const s = Math.floor((totalMs % 60000) / 1000);
+      const ms = totalMs % 1000;
+      return { h, m, s, ms };
+    }
+
+    const timeMatch = raw.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AP]M)?$/i);
+    if (timeMatch) {
+      let h = parseInt(timeMatch[1], 10);
+      const m = parseInt(timeMatch[2], 10);
+      const s = parseInt(timeMatch[3] || '0', 10);
+      const suffix = timeMatch[4] ? timeMatch[4].toUpperCase() : '';
+
+      if (suffix === 'AM' && h === 12) h = 0;
+      if (suffix === 'PM' && h < 12) h += 12;
+
+      if (h <= 23 && m <= 59 && s <= 59) {
+        return { h, m, s, ms: 0 };
+      }
+    }
+
+    const parsed = new Date(raw);
+    if (!isNaN(parsed)) {
+      return {
+        h: parsed.getHours(),
+        m: parsed.getMinutes(),
+        s: parsed.getSeconds(),
+        ms: parsed.getMilliseconds(),
+      };
+    }
+
+    return null;
+  }
+
+  function combineTradeDateTime(valueDate, tradeDate, tradeTime) {
+    const baseDate = isValidDate(tradeDate) ? tradeDate : valueDate;
+    if (!isValidDate(baseDate)) return new Date(NaN);
+
+    const combined = new Date(
+      baseDate.getFullYear(),
+      baseDate.getMonth(),
+      baseDate.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+
+    if (tradeTime) {
+      combined.setHours(tradeTime.h, tradeTime.m, tradeTime.s, tradeTime.ms);
+    }
+
+    return combined;
+  }
+
+  function compareDate(a, b) {
+    const aValid = isValidDate(a);
+    const bValid = isValidDate(b);
+    if (!aValid && !bValid) return 0;
+    if (!aValid) return 1;
+    if (!bValid) return -1;
+    return a - b;
+  }
+
+  function isValidDate(d) {
+    return d instanceof Date && !isNaN(d);
   }
 
   function round(n) {
